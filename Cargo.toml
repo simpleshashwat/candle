@@ -4,3 +4,7 @@ members = [
     "candle-hub",
     "candle-kernels",
 ]
+
+[profile.release]
+opt-level = "z"
+debug = 1

@@ -415,6 +415,29 @@ impl Tensor {
         Ok(from_storage(storage, dims, op, false))
     }
 
+    pub fn normalize(&self, epsilon: f64) -> Result<Self> {
+        println!("layout {:?} {:?}", self.layout, self.is_contiguous());
+        if !self.is_contiguous() {
+            return Err(Error::RequiresContiguous { op: "normalize" });
+        }
+        let size = self
+            .shape()
+            .dims()
+            .last()
+            .ok_or(Error::UnexpectedNumberOfDims {
+                expected: 1,
+                got: 0,
+                shape: self.shape().clone(),
+            })?;
+        let storage = self.storage.normalize(*size, epsilon)?;
+        let op = if self.track_op() {
+            Some(Op::Normalize(self.clone()))
+        } else {
+            None
+        };
+        Ok(from_storage(storage, self.shape(), op, false))
+    }
+
     pub fn matmul(&self, rhs: &Self) -> Result<Self> {
         let a_dims = self.shape().dims();
         let b_dims = rhs.shape().dims();

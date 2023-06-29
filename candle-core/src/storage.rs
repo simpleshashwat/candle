@@ -191,6 +191,19 @@ impl Storage {
         }
     }
 
+    pub(crate) fn normalize(&self, size: usize, epsilon: f64) -> Result<Self> {
+        match self {
+            Self::Cpu(lhs) => {
+                let storage = lhs.normalize(size, epsilon)?;
+                Ok(Self::Cpu(storage))
+            }
+            Self::Cuda(lhs) => {
+                let storage = lhs.normalize(size, epsilon)?;
+                Ok(Self::Cuda(storage))
+            }
+        }
+    }
+
     pub(crate) fn matmul(
         &self,
         rhs: &Self,

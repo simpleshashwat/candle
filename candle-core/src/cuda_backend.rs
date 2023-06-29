@@ -808,6 +808,48 @@ impl CudaStorage {
         Ok(Self { slice, device })
     }
 
+    pub(crate) fn normalize(&self, size: usize, epsilon: f64) -> Result<Self> {
+        let dev = &self.device;
+        let slice = match &self.slice {
+            CudaStorageSlice::BF16(_lhs) => {
+                todo!("bf16")
+            }
+            CudaStorageSlice::F16(lhs) => {
+                let elem_count = lhs.len();
+                // SAFETY: Set later by running the kernel.
+                let mut out = unsafe { dev.alloc::<f16>(elem_count) }?;
+                // dev.dtod_copy(lhs, &mut out)?;
+
+                let numel = (elem_count / size) as u32;
+                let cfg = LaunchConfig::for_num_elems(numel);
+                let func = dev.get_or_load_func("normalize_f16", kernels::NORMALIZE)?;
+                let params = (numel, lhs, &mut out, size, epsilon as f32);
+                // SAFETY: ffi
+                unsafe { func.launch(cfg, params) }?;
+                CudaStorageSlice::F16(out)
+            }
+            CudaStorageSlice::F32(lhs) => {
+                let elem_count = lhs.len();
+                // SAFETY: Set later by running the kernel.
+                let mut out = unsafe { dev.alloc::<f32>(elem_count) }?;
+                // dev.dtod_copy(lhs, &mut out)?;
+                let numel = (elem_count / size) as u32;
+                let cfg = LaunchConfig::for_num_elems(numel);
+                let func = dev.get_or_load_func("normalize_f32", kernels::NORMALIZE)?;
+                let params = (numel, lhs, &mut out, size, epsilon as f32);
+                // SAFETY: ffi.
+                unsafe { func.launch(cfg, params) }?;
+                CudaStorageSlice::F32(out)
+            }
+            CudaStorageSlice::F64(_lhs) => {
+                unimplemented!("f64")
+            }
+            _ => return Err(CudaError::InternalError("dtype mismatch in matmul op")),
+        };
+        let device = dev.clone();
+        Ok(Self { slice, device })
+    }
+
     pub(crate) fn copy_strided_src(
         &self,
         dst: &mut Self,

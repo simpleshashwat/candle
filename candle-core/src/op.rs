@@ -38,6 +38,7 @@ pub(crate) enum Op {
     Transpose(Tensor, usize, usize),
     Gelu(Tensor),
     Relu(Tensor),
+    Normalize(Tensor),
     // TODO: Support for custom ops.
 }
 

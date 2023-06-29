@@ -76,6 +76,7 @@ impl Tensor {
                     | Op::Sin(node)
                     | Op::Cos(node)
                     | Op::Abs(node)
+                    | Op::Normalize(node)
                     | Op::Neg(node) => {
                         let (tg, nodes) = walk(node, nodes, already_seen);
                         track_grad |= tg;
@@ -207,6 +208,9 @@ impl Tensor {
                     Op::Neg(arg) => {
                         let sum_grad = grads.or_insert(arg)?;
                         *sum_grad = sum_grad.sub(&grad)?
+                    }
+                    Op::Normalize(_lhs) => {
+                        return Err(Error::BackwardNotSupported { op: "normalize" })
                     }
                     &Op::Narrow(ref arg, dim, start_idx, len) => {
                         let arg_dims = arg.dims();

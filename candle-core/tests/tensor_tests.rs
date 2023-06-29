@@ -1,5 +1,6 @@
 mod test_utils;
 use candle::{DType, Device, Result, Tensor};
+use half::f16;
 use test_utils::to_vec3_round;
 
 fn zeros(device: &Device) -> Result<()> {
@@ -276,6 +277,36 @@ fn matmul(device: &Device) -> Result<()> {
     Ok(())
 }
 
+fn normalize(device: &Device) -> Result<()> {
+    let data = &[6.0f32, 8.0, 3.0, 4.0];
+    let data: Vec<f16> = data.iter().map(|x| f16::from_f32(*x)).collect();
+    let a = Tensor::from_slice(&data, (2, 2), device).unwrap();
+    let epsilon = 1e-5;
+    let c = a.normalize(epsilon).unwrap();
+
+    // let expected = &[-1.0, 1.0, -1.0, 1.0];
+    let expected = &[0.6, 0.8, 0.6, 0.8];
+    let expected: Vec<f16> = expected.iter().map(|x| f16::from_f32(*x)).collect();
+    assert_eq!(
+        c.storage_data::<f16>()?,
+        expected // Values obtained through python
+    );
+
+    let a = Tensor::zeros((512, 4096), DType::F16, device)?.contiguous()?;
+    println!("A {:?}", a.is_contiguous());
+    println!("A layout {:?}", a.layout().is_contiguous());
+    let epsilon = 1e-5;
+    a.normalize(epsilon).unwrap();
+
+    // let expected = &[-1.0, 1.0, -1.0, 1.0];
+    // let expected: Vec<f16> = expected.iter().map(|x| f16::from_f32(*x)).collect();
+    // assert_eq!(
+    //     c.storage_data::<f16>()?,
+    //     expected // Values obtained through python
+    // );
+    Ok(())
+}
+
 test_device!(zeros, zeros_cpu, zeros_gpu);
 test_device!(add_mul, add_mul_cpu, add_mul_gpu);
 test_device!(tensor_2d, tensor_2d_cpu, tensor_2d_gpu);
@@ -288,3 +319,4 @@ test_device!(binary_op, binary_op_cpu, binary_op_gpu);
 test_device!(softmax, softmax_cpu, softmax_gpu);
 test_device!(embeddings, embeddings_cpu, embeddings_gpu);
 test_device!(matmul, matmul_cpu, matmul_gpu);
+test_device!(normalize, normalize_cpu, normalize_gpu);

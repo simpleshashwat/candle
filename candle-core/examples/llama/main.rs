@@ -167,18 +167,13 @@ impl RmsNorm {
     }
 
     fn forward(&self, x: &Tensor) -> Result<Tensor> {
-        let x = x.to_dtype(DType::F32)?;
         let (seq_len, hidden_size) = x.shape().r2()?;
-        let norm_x = ((&x * &x)?.sum(&[1])? / hidden_size as f64)?;
-        let norm_x = norm_x.broadcast_as((seq_len, hidden_size))?;
-        let x_normed = (x / (norm_x + 1e-5)?.sqrt()?)?;
-        let size = self.scale.shape().r1()?;
-        let scale = self
-            .scale
-            .to_dtype(DType::F32)?
-            .broadcast_as((seq_len, size))?;
+        // let norm_x = ((x * x)?.sum(&[1])? / hidden_size as f64)?;
+        // let norm_x = norm_x.broadcast_as((seq_len, hidden_size))?;
+        // let x_normed = (x / (norm_x + 1e-5)?.sqrt()?)?;
+        let x_normed = x.normalize(1e-5)?;
+        let scale = self.scale.broadcast_as((seq_len, hidden_size))?;
         let x = (scale * x_normed)?;
-        let x = x.to_dtype(DType::F16)?;
         Ok(x)
     }
 }
