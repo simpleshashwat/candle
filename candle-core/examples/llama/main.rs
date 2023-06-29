@@ -13,6 +13,7 @@
 // transposition operations.
 use anyhow::{Error as E, Result};
 use clap::Parser;
+use cudarc::driver::safe::{profiler_start, profiler_stop};
 use rand::{distributions::Distribution, SeedableRng};
 
 use candle::{DType, Device, Tensor};
@@ -168,13 +169,16 @@ impl RmsNorm {
 
     fn forward(&self, x: &Tensor) -> Result<Tensor> {
         let (seq_len, hidden_size) = x.shape().r2()?;
-        // let norm_x = ((x * x)?.sum(&[1])? / hidden_size as f64)?;
+        // let x = x.to_dtype(DType::F32)?;
+        // let norm_x = ((&x * &x)?.sum(&[1])? / hidden_size as f64)?;
         // let norm_x = norm_x.broadcast_as((seq_len, hidden_size))?;
         // let x_normed = (x / (norm_x + 1e-5)?.sqrt()?)?;
+        // let x_normed = x_normed.to_dtype(DType::F16)?;
         let x_normed = x.normalize(1e-5)?;
-        let scale = self.scale.broadcast_as((seq_len, hidden_size))?;
-        let x = (scale * x_normed)?;
-        Ok(x)
+        // let scale = self.scale.broadcast_as((seq_len, hidden_size))?;
+        // let x = (scale * x_normed)?;
+        Ok(x_normed)
+        // Ok(x.clone())
     }
 }
 
@@ -198,8 +202,9 @@ impl Mlp {
     }
 
     fn forward(&self, x: &Tensor) -> Result<Tensor> {
-        let x = (silu(&self.c_fc1.forward(x)?)? * self.c_fc2.forward(x)?)?;
-        self.c_proj.forward(&x)
+        // let x = (silu(&self.c_fc1.forward(x)?)? * self.c_fc2.forward(x)?)?;
+        // self.c_proj.forward(&x)
+        Ok(x.clone())
     }
 }
 
@@ -291,52 +296,53 @@ impl CausalSelfAttention {
     }
 
     fn forward(&self, x: &Tensor, freqs_cis: &Tensor, block_idx: usize) -> Result<Tensor> {
-        let (t, c) = x.shape().r2()?;
-        let qkv = self.c_attn.forward(x)?;
-        let qkv = qkv.to_dtype(DType::F32)?;
-        let n_embd = c;
-        let q = qkv.narrow(1, 0, n_embd)?;
-        let k = qkv.narrow(1, n_embd, n_embd)?;
-        let v = qkv.narrow(1, 2 * n_embd, n_embd)?;
-        let target_dim = [t, self.n_head, c / self.n_head];
-        let k = k.reshape(target_dim.as_slice())?.transpose(0, 1)?;
-        let q = q.reshape(target_dim.as_slice())?.transpose(0, 1)?;
-        let mut v = v.reshape(target_dim.as_slice())?.transpose(0, 1)?;
-        let q = self.apply_rotary_emb(&q, freqs_cis)?;
-        let mut k = self.apply_rotary_emb(&k, freqs_cis)?;
+        // let (t, c) = x.shape().r2()?;
+        // let qkv = self.c_attn.forward(x)?;
+        // let qkv = qkv.to_dtype(DType::F32)?;
+        // let n_embd = c;
+        // let q = qkv.narrow(1, 0, n_embd)?;
+        // let k = qkv.narrow(1, n_embd, n_embd)?;
+        // let v = qkv.narrow(1, 2 * n_embd, n_embd)?;
+        // let target_dim = [t, self.n_head, c / self.n_head];
+        // let k = k.reshape(target_dim.as_slice())?.transpose(0, 1)?;
+        // let q = q.reshape(target_dim.as_slice())?.transpose(0, 1)?;
+        // let mut v = v.reshape(target_dim.as_slice())?.transpose(0, 1)?;
+        // let q = self.apply_rotary_emb(&q, freqs_cis)?;
+        // let mut k = self.apply_rotary_emb(&k, freqs_cis)?;
 
-        if self.cache.use_kv_cache {
-            let mut cache = self.cache.kvs.lock().unwrap();
-            if let Some((cache_k, cache_v)) = &cache[block_idx] {
-                k = Tensor::cat(&[cache_k, &k], 1)?.contiguous()?;
-                v = Tensor::cat(&[cache_v, &v], 1)?.contiguous()?;
-                let k_seq_len = k.dims()[1];
-                if k_seq_len > MAX_SEQ_LEN {
-                    k = k
-                        .narrow(1, k_seq_len - MAX_SEQ_LEN, MAX_SEQ_LEN)?
-                        .contiguous()?
-                }
-                let v_seq_len = v.dims()[1];
-                if v_seq_len > 2 * MAX_SEQ_LEN {
-                    v = v
-                        .narrow(1, v_seq_len - MAX_SEQ_LEN, MAX_SEQ_LEN)?
-                        .contiguous()?
-                }
-            }
-            cache[block_idx] = Some((k.clone(), v.clone()))
-        }
+        // if self.cache.use_kv_cache {
+        //     let mut cache = self.cache.kvs.lock().unwrap();
+        //     if let Some((cache_k, cache_v)) = &cache[block_idx] {
+        //         k = Tensor::cat(&[cache_k, &k], 1)?.contiguous()?;
+        //         v = Tensor::cat(&[cache_v, &v], 1)?.contiguous()?;
+        //         let k_seq_len = k.dims()[1];
+        //         if k_seq_len > MAX_SEQ_LEN {
+        //             k = k
+        //                 .narrow(1, k_seq_len - MAX_SEQ_LEN, MAX_SEQ_LEN)?
+        //                 .contiguous()?
+        //         }
+        //         let v_seq_len = v.dims()[1];
+        //         if v_seq_len > 2 * MAX_SEQ_LEN {
+        //             v = v
+        //                 .narrow(1, v_seq_len - MAX_SEQ_LEN, MAX_SEQ_LEN)?
+        //                 .contiguous()?
+        //         }
+        //     }
+        //     cache[block_idx] = Some((k.clone(), v.clone()))
+        // }
 
-        let k_shape = k.shape();
-        let att = (q.matmul(&k.t()?)? / (*k_shape.dims().last().unwrap() as f64).sqrt())?;
-        let mask = self.cache.mask(t)?.broadcast_as(att.shape())?;
-        let att = masked_fill(&att, &mask, f32::NEG_INFINITY)?;
-        let att = att.softmax(att.rank() - 1)?;
-        // Convert to contiguous as matmul doesn't support strided vs for now.
-        let y = att.matmul(&v.contiguous()?)?;
-        let y = y.transpose(0, 1)?.reshape(&[t, c])?;
-        let y = y.to_dtype(DType::F16)?;
-        let y = self.c_proj.forward(&y)?;
-        Ok(y)
+        // let k_shape = k.shape();
+        // let att = (q.matmul(&k.t()?)? / (*k_shape.dims().last().unwrap() as f64).sqrt())?;
+        // let mask = self.cache.mask(t)?.broadcast_as(att.shape())?;
+        // let att = masked_fill(&att, &mask, f32::NEG_INFINITY)?;
+        // let att = att.softmax(att.rank() - 1)?;
+        // // Convert to contiguous as matmul doesn't support strided vs for now.
+        // let y = att.matmul(&v.contiguous()?)?;
+        // let y = y.transpose(0, 1)?.reshape(&[t, c])?;
+        // let y = y.to_dtype(DType::F16)?;
+        // let y = self.c_proj.forward(&y)?;
+        // Ok(y)
+        Ok(x.clone())
     }
 }
 
@@ -357,12 +363,24 @@ impl Block {
         }
     }
 
+<<<<<<< HEAD
     fn forward(&self, x: &Tensor, freqs_cis: &Tensor, block_idx: usize) -> Result<Tensor> {
         let x = (self
             .attn
             .forward(&self.rms_1.forward(x)?, freqs_cis, block_idx)?
             + x)?;
         let x = (self.mlp.forward(&self.rms_2.forward(&x)?)? + x)?;
+=======
+    fn forward(&self, x: &Tensor, freqs_cis: &Tensor) -> Result<Tensor> {
+        // let residual = x.clone();
+        let x = self.rms_1.forward(&x)?;
+        // let x = self.attn.forward(&x, freqs_cis)?;
+        // let x = (&x + &residual)?;
+        // let residual = x.clone();
+        let x = self.rms_2.forward(&x)?;
+        // let x = self.mlp.forward(&x)?;
+        // let x = (&x + &residual)?;
+>>>>>>> 4f78e32 (Tmp)
         Ok(x)
     }
 }
@@ -513,6 +531,7 @@ async fn main() -> Result<()> {
         };
         let ctxt = &tokens[tokens.len().saturating_sub(context_size)..];
         let input = Tensor::new(ctxt, &device)?;
+<<<<<<< HEAD
         let freqs_cis = if cache.use_kv_cache {
             freqs_cis.narrow(1, index_pos, ctxt.len())?
         } else {
@@ -520,6 +539,11 @@ async fn main() -> Result<()> {
         };
         let logits = llama.forward(&input, &freqs_cis)?;
         index_pos += ctxt.len();
+=======
+        profiler_start()?;
+        let logits = llama.forward(&input, &freqs_cis)?;
+        profiler_stop()?;
+>>>>>>> 4f78e32 (Tmp)
 
         let next_token = if let Some(temperature) = args.temperature {
             println!("Sampling with temperature {temperature:?}");

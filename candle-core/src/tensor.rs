@@ -415,8 +415,7 @@ impl Tensor {
         Ok(from_storage(storage, dims, op, false))
     }
 
-    pub fn normalize(&self, epsilon: f64) -> Result<Self> {
-        println!("layout {:?} {:?}", self.layout, self.is_contiguous());
+    pub fn normalize(&self, epsilon: f32) -> Result<Self> {
         if !self.is_contiguous() {
             return Err(Error::RequiresContiguous { op: "normalize" });
         }
@@ -429,7 +428,9 @@ impl Tensor {
                 got: 0,
                 shape: self.shape().clone(),
             })?;
-        let storage = self.storage.normalize(*size, epsilon)?;
+        let storage = self
+            .storage
+            .normalize(self.shape().elem_count(), *size, epsilon)?;
         let op = if self.track_op() {
             Some(Op::Normalize(self.clone()))
         } else {

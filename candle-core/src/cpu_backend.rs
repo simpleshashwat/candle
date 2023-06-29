@@ -569,7 +569,12 @@ impl CpuStorage {
         .map(rhs, rhs_l)
     }
 
-    pub(crate) fn normalize(&self, size: usize, epsilon: f64) -> Result<Self> {
+    pub(crate) fn normalize(
+        &self,
+        _element_count: usize,
+        size: usize,
+        epsilon: f32,
+    ) -> Result<Self> {
         let x = match self {
             Self::F16(input) => {
                 let mut x = input.to_vec();
@@ -579,7 +584,8 @@ impl CpuStorage {
                     // let mean: f16 = f16::from_f32(mean);
                     // chunk.iter_mut().for_each(|v| *v -= mean);
                     let var: f32 = chunk.iter().map(|v| v.to_f32() * v.to_f32()).sum();
-                    let stddev: f32 = (var + epsilon as f32).sqrt();
+                    let var = var / size as f32;
+                    let stddev: f32 = (var + epsilon).sqrt();
                     let stddev: f16 = f16::from_f32(stddev);
                     chunk.iter_mut().for_each(|v| *v /= stddev);
                 });

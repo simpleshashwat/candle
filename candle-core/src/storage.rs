@@ -191,14 +191,14 @@ impl Storage {
         }
     }
 
-    pub(crate) fn normalize(&self, size: usize, epsilon: f64) -> Result<Self> {
+    pub(crate) fn normalize(&self, elem_count: usize, size: usize, epsilon: f32) -> Result<Self> {
         match self {
             Self::Cpu(lhs) => {
-                let storage = lhs.normalize(size, epsilon)?;
+                let storage = lhs.normalize(elem_count, size, epsilon)?;
                 Ok(Self::Cpu(storage))
             }
             Self::Cuda(lhs) => {
-                let storage = lhs.normalize(size, epsilon)?;
+                let storage = lhs.normalize(elem_count, size, epsilon)?;
                 Ok(Self::Cuda(storage))
             }
         }

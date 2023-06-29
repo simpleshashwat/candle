@@ -808,22 +808,28 @@ impl CudaStorage {
         Ok(Self { slice, device })
     }
 
-    pub(crate) fn normalize(&self, size: usize, epsilon: f64) -> Result<Self> {
+    pub(crate) fn normalize(&self, elem_count: usize, size: usize, epsilon: f32) -> Result<Self> {
         let dev = &self.device;
+        let numel = elem_count / size;
         let slice = match &self.slice {
             CudaStorageSlice::BF16(_lhs) => {
                 todo!("bf16")
             }
             CudaStorageSlice::F16(lhs) => {
-                let elem_count = lhs.len();
                 // SAFETY: Set later by running the kernel.
                 let mut out = unsafe { dev.alloc::<f16>(elem_count) }?;
-                // dev.dtod_copy(lhs, &mut out)?;
-
-                let numel = (elem_count / size) as u32;
-                let cfg = LaunchConfig::for_num_elems(numel);
+                dev.dtod_copy(lhs, &mut out)?;
+                let mut var = unsafe { dev.alloc::<f32>(numel) }?;
+                // let cfg = LaunchConfig::for_num_elems(elem_count as u32);
+                let n_threads = 512u32;
+                let num_blocks = (elem_count as u32 + n_threads - 1) / n_threads;
+                let cfg = LaunchConfig {
+                    grid_dim: (num_blocks, 2, 1),
+                    block_dim: (n_threads, 2, 1),
+                    shared_mem_bytes: 0,
+                };
                 let func = dev.get_or_load_func("normalize_f16", kernels::NORMALIZE)?;
-                let params = (numel, lhs, &mut out, size, epsilon as f32);
+                let params = (elem_count, &mut out, size, epsilon, &mut var);
                 // SAFETY: ffi
                 unsafe { func.launch(cfg, params) }?;
                 CudaStorageSlice::F16(out)
@@ -832,11 +838,10 @@ impl CudaStorage {
                 let elem_count = lhs.len();
                 // SAFETY: Set later by running the kernel.
                 let mut out = unsafe { dev.alloc::<f32>(elem_count) }?;
-                // dev.dtod_copy(lhs, &mut out)?;
-                let numel = (elem_count / size) as u32;
-                let cfg = LaunchConfig::for_num_elems(numel);
+                dev.dtod_copy(lhs, &mut out)?;
+                let cfg = LaunchConfig::for_num_elems(elem_count as u32);
                 let func = dev.get_or_load_func("normalize_f32", kernels::NORMALIZE)?;
-                let params = (numel, lhs, &mut out, size, epsilon as f32);
+                let params = (elem_count, &mut out, size, epsilon);
                 // SAFETY: ffi.
                 unsafe { func.launch(cfg, params) }?;
                 CudaStorageSlice::F32(out)

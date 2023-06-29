@@ -278,32 +278,28 @@ fn matmul(device: &Device) -> Result<()> {
 }
 
 fn normalize(device: &Device) -> Result<()> {
-    let data = &[6.0f32, 8.0, 3.0, 4.0];
+    let data = &[1.0f32, 1.0, -1.0, 1.0];
     let data: Vec<f16> = data.iter().map(|x| f16::from_f32(*x)).collect();
     let a = Tensor::from_slice(&data, (2, 2), device).unwrap();
     let epsilon = 1e-5;
     let c = a.normalize(epsilon).unwrap();
 
     // let expected = &[-1.0, 1.0, -1.0, 1.0];
-    let expected = &[0.6, 0.8, 0.6, 0.8];
+    let expected = &[1.0, 1.0, -1.0, 1.0];
     let expected: Vec<f16> = expected.iter().map(|x| f16::from_f32(*x)).collect();
     assert_eq!(
         c.storage_data::<f16>()?,
         expected // Values obtained through python
     );
 
-    let a = Tensor::zeros((512, 4096), DType::F16, device)?.contiguous()?;
-    println!("A {:?}", a.is_contiguous());
-    println!("A layout {:?}", a.layout().is_contiguous());
+    let a = Tensor::ones((512, 4096), DType::F16, device)?.contiguous()?;
     let epsilon = 1e-5;
     a.normalize(epsilon).unwrap();
+    let expected: Vec<f16> = (0..512 * 4096).map(|x| f16::from_f32(1.0)).collect();
 
-    // let expected = &[-1.0, 1.0, -1.0, 1.0];
-    // let expected: Vec<f16> = expected.iter().map(|x| f16::from_f32(*x)).collect();
-    // assert_eq!(
-    //     c.storage_data::<f16>()?,
-    //     expected // Values obtained through python
-    // );
+    let result: f32 = a.storage_data::<f16>()?.iter().map(|f| f.to_f32()).sum();
+    assert_eq!(result, 512.0f32 * 4096.0);
+
     Ok(())
 }
 
