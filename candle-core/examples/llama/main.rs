@@ -175,9 +175,10 @@ impl RmsNorm {
         // let x_normed = (x / (norm_x + 1e-5)?.sqrt()?)?;
         // let x_normed = x_normed.to_dtype(DType::F16)?;
         let x_normed = x.normalize(1e-5)?;
-        // let scale = self.scale.broadcast_as((seq_len, hidden_size))?;
-        // let x = (scale * x_normed)?;
-        Ok(x_normed)
+        let scale = self.scale.broadcast_as((seq_len, hidden_size))?;
+        let x = (scale * x_normed)?;
+        Ok(x)
+        // Ok(x_normed)
         // Ok(x.clone())
     }
 }
@@ -363,24 +364,12 @@ impl Block {
         }
     }
 
-<<<<<<< HEAD
     fn forward(&self, x: &Tensor, freqs_cis: &Tensor, block_idx: usize) -> Result<Tensor> {
         let x = (self
             .attn
             .forward(&self.rms_1.forward(x)?, freqs_cis, block_idx)?
             + x)?;
         let x = (self.mlp.forward(&self.rms_2.forward(&x)?)? + x)?;
-=======
-    fn forward(&self, x: &Tensor, freqs_cis: &Tensor) -> Result<Tensor> {
-        // let residual = x.clone();
-        let x = self.rms_1.forward(&x)?;
-        // let x = self.attn.forward(&x, freqs_cis)?;
-        // let x = (&x + &residual)?;
-        // let residual = x.clone();
-        let x = self.rms_2.forward(&x)?;
-        // let x = self.mlp.forward(&x)?;
-        // let x = (&x + &residual)?;
->>>>>>> 4f78e32 (Tmp)
         Ok(x)
     }
 }
@@ -515,6 +504,8 @@ async fn main() -> Result<()> {
         .get_ids()
         .to_vec();
 
+    println!("Start prompt {:?}", tokens.len());
+
     println!("pre-computing the positional embeddings");
     let freqs_cis = precompute_freqs_cis(&config, &device)?;
     println!("starting the inference loop");
@@ -531,19 +522,15 @@ async fn main() -> Result<()> {
         };
         let ctxt = &tokens[tokens.len().saturating_sub(context_size)..];
         let input = Tensor::new(ctxt, &device)?;
-<<<<<<< HEAD
         let freqs_cis = if cache.use_kv_cache {
             freqs_cis.narrow(1, index_pos, ctxt.len())?
         } else {
             freqs_cis.clone()
         };
-        let logits = llama.forward(&input, &freqs_cis)?;
-        index_pos += ctxt.len();
-=======
         profiler_start()?;
         let logits = llama.forward(&input, &freqs_cis)?;
         profiler_stop()?;
->>>>>>> 4f78e32 (Tmp)
+        index_pos += ctxt.len();
 
         let next_token = if let Some(temperature) = args.temperature {
             println!("Sampling with temperature {temperature:?}");
