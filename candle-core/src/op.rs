@@ -158,6 +158,17 @@ unary_op!(Neg, "neg", v, -v);
 unary_op!(Sqr, "sqr", v, v * v);
 unary_op!(Sqrt, "sqrt", v, v.sqrt());
 
+#[inline]
+pub fn inline_tanh(x: f32) -> f32 {
+    1.0 - (2.0 / (1.0 + (2.0 * x).exp()))
+}
+
+#[inline]
+pub fn inline_tanh_f16(x: f16) -> f16 {
+    let two = f16::from_f32_const(2.0);
+    f16::ONE - (two / (f16::ONE + (two * x).exp()))
+}
+
 /// `gelu` operation
 /// <https://en.wikipedia.org/wiki/Activation_function#Comparison_of_activation_functions>
 impl UnaryOp for Gelu {
@@ -177,7 +188,7 @@ impl UnaryOp for Gelu {
         f16::from_f32_const(0.5)
             * v
             * (f16::ONE
-                + f16::tanh(
+                + inline_tanh_f16(
                     (f16::from_f32_const(2.0) / f16::PI).sqrt()
                         * v
                         * (f16::ONE + f16::from_f32_const(0.044715) * v * v),
@@ -186,7 +197,9 @@ impl UnaryOp for Gelu {
     fn f32(v: f32) -> f32 {
         0.5 * v
             * (1.0
-                + f32::tanh((2.0f32 / std::f32::consts::PI).sqrt() * v * (1.0 + 0.044715 * v * v)))
+                + inline_tanh(
+                    (2.0f32 / std::f32::consts::PI).sqrt() * v * (1.0 + 0.044715 * v * v),
+                ))
     }
     fn f64(v: f64) -> f64 {
         0.5 * v
