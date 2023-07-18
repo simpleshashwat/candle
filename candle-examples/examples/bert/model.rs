@@ -67,16 +67,34 @@ pub struct LayerNorm {
     bias: Tensor,
     eps: f64,
     span: tracing::Span,
+    span_sum1: tracing::Span,
+    span_div1: tracing::Span,
+    span_sqr: tracing::Span,
+    span_sum2: tracing::Span,
+    span_div2: tracing::Span,
+    span_sqrt: tracing::Span,
 }
 
 impl LayerNorm {
     pub fn new(weight: Tensor, bias: Tensor, eps: f64) -> Self {
         let span = tracing::span!(tracing::Level::TRACE, "layer-norm");
+        let span_sum1 = tracing::span!(tracing::Level::TRACE, "layer-norm-sum1");
+        let span_div1 = tracing::span!(tracing::Level::TRACE, "layer-norm-div1");
+        let span_sqr = tracing::span!(tracing::Level::TRACE, "layer-norm-sqr");
+        let span_sum2 = tracing::span!(tracing::Level::TRACE, "layer-norm-sum2");
+        let span_div2 = tracing::span!(tracing::Level::TRACE, "layer-norm-div2");
+        let span_sqrt = tracing::span!(tracing::Level::TRACE, "layer-norm-sqrt");
         Self {
             weight,
             bias,
             eps,
             span,
+            span_sum1,
+            span_div1,
+            span_sqr,
+            span_sum2,
+            span_div2,
+            span_sqrt,
         }
     }
 
@@ -89,10 +107,32 @@ impl LayerNorm {
         };
         let (_bsize, _seq_len, hidden_size) = x.shape().r3()?;
         let x = x.to_dtype(internal_dtype)?;
-        let mean_x = (x.sum_keepdim(2)? / hidden_size as f64)?;
+        let sum_x = {
+            let _enter1 = self.span_sum1.enter();
+
+            x.sum_keepdim(2)?
+        };
+        let mean_x = {
+            let _enter_div1 = self.span_div1.enter();
+            (sum_x / hidden_size as f64)?
+        };
         let x = x.broadcast_sub(&mean_x)?;
-        let norm_x = (x.sqr()?.sum_keepdim(2)? / hidden_size as f64)?;
-        let x_normed = x.broadcast_div(&(norm_x + self.eps)?.sqrt()?)?;
+        let x2 = {
+            let _enters = self.span_sqr.enter();
+            x.sqr()?
+        };
+        let sum_x2 = {
+            let _enter_sum2 = self.span_sum2.enter();
+            x2.sum_keepdim(2)?
+        };
+        let norm_x = {
+            let _enter_div2 = self.span_div2.enter();
+            (sum_x2 / hidden_size as f64)?
+        };
+        let x_normed = x.broadcast_div({
+            let _enter_sqrt = self.span_sqrt.enter();
+            &(norm_x + self.eps)?.sqrt()?
+        })?;
         let x = x_normed
             .to_dtype(x_dtype)?
             .broadcast_mul(&self.weight)?
