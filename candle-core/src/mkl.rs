@@ -6,6 +6,25 @@ mod ffi {
     extern "C" {
         pub fn vsTanh(n: c_int, a: *const c_float, y: *mut c_float);
         pub fn vdTanh(n: c_int, a: *const c_double, y: *mut c_double);
+        pub fn vsExp(n: c_int, a: *const c_float, y: *mut c_float);
+        pub fn vdExp(n: c_int, a: *const c_double, y: *mut c_double);
+        pub fn vsLn(n: c_int, a: *const c_float, y: *mut c_float);
+        pub fn vdLn(n: c_int, a: *const c_double, y: *mut c_double);
+        pub fn vsSin(n: c_int, a: *const c_float, y: *mut c_float);
+        pub fn vdSin(n: c_int, a: *const c_double, y: *mut c_double);
+        pub fn vsCos(n: c_int, a: *const c_float, y: *mut c_float);
+        pub fn vdCos(n: c_int, a: *const c_double, y: *mut c_double);
+        pub fn vsSqrt(n: c_int, a: *const c_float, y: *mut c_float);
+        pub fn vdSqrt(n: c_int, a: *const c_double, y: *mut c_double);
+
+        pub fn vsAdd(n: c_int, a: *const c_float, b: *const c_float, y: *mut c_float);
+        pub fn vdAdd(n: c_int, a: *const c_double, b: *const c_double, y: *mut c_double);
+        pub fn vsSub(n: c_int, a: *const c_float, b: *const c_float, y: *mut c_float);
+        pub fn vdSub(n: c_int, a: *const c_double, b: *const c_double, y: *mut c_double);
+        pub fn vsMul(n: c_int, a: *const c_float, b: *const c_float, y: *mut c_float);
+        pub fn vdMul(n: c_int, a: *const c_double, b: *const c_double, y: *mut c_double);
+        pub fn vsDiv(n: c_int, a: *const c_float, b: *const c_float, y: *mut c_float);
+        pub fn vdDiv(n: c_int, a: *const c_double, b: *const c_double, y: *mut c_double);
 
         pub fn sgemm_(
             transa: *const c_char,
@@ -158,6 +177,126 @@ pub unsafe fn hgemm(
 }
 
 #[inline]
+pub fn vs_exp(a: &[f32], y: &mut [f32]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vsExp(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vd_exp(a: &[f64], y: &mut [f64]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vdExp(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vs_ln(a: &[f32], y: &mut [f32]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vsLn(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vd_ln(a: &[f64], y: &mut [f64]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vdLn(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vs_sin(a: &[f32], y: &mut [f32]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vsSin(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vd_sin(a: &[f64], y: &mut [f64]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vdSin(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vs_cos(a: &[f32], y: &mut [f32]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vsCos(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vd_cos(a: &[f64], y: &mut [f64]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vdCos(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vs_sqrt(a: &[f32], y: &mut [f32]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vsSqrt(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vd_sqrt(a: &[f64], y: &mut [f64]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vdSqrt(a_len as i32, a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vs_sqr(a: &[f32], y: &mut [f32]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vsMul(a_len as i32, a.as_ptr(), a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
+pub fn vd_sqr(a: &[f64], y: &mut [f64]) {
+    let a_len = a.len();
+    let y_len = y.len();
+    if a_len != y_len {
+        panic!("a and y have different lengths {a_len} <> {y_len}")
+    }
+    unsafe { ffi::vdMul(a_len as i32, a.as_ptr(), a.as_ptr(), y.as_mut_ptr()) }
+}
+
+#[inline]
 fn vs_tanh(a: &[f32], y: &mut [f32]) {
     let a_len = a.len();
     let y_len = y.len();
@@ -190,6 +329,7 @@ pub fn vd_tanh_inplace(y: &mut [f64]) {
     unsafe { ffi::vdTanh(y.len() as i32, y.as_ptr(), y.as_mut_ptr()) }
 }
 
+#[inline]
 pub fn vs_gelu(vs: &[f32], ys: &mut [f32]) {
     for (&v, y) in vs.iter().zip(ys.iter_mut()) {
         *y = (2.0f32 / std::f32::consts::PI).sqrt() * v * (1.0 + 0.044715 * v * v)
@@ -200,6 +340,7 @@ pub fn vs_gelu(vs: &[f32], ys: &mut [f32]) {
     }
 }
 
+#[inline]
 pub fn vd_gelu(vs: &[f64], ys: &mut [f64]) {
     for (&v, y) in vs.iter().zip(ys.iter_mut()) {
         *y = (2.0f64 / std::f64::consts::PI).sqrt() * v * (1.0 + 0.044715 * v * v)
@@ -209,3 +350,29 @@ pub fn vd_gelu(vs: &[f64], ys: &mut [f64]) {
         *y = 0.5 * v * (1.0 + *y)
     }
 }
+
+macro_rules! binary_op {
+    ($fn_name:ident, $ty:ty, $mkl_name:ident) => {
+        #[inline]
+        pub fn $fn_name(a: &[$ty], b: &[$ty], y: &mut [$ty]) {
+            let a_len = a.len();
+            let b_len = b.len();
+            let y_len = y.len();
+            if a_len != y_len || b_len != y_len {
+                panic!(
+                    "{} a,b,y len mismatch {a_len} {b_len} {y_len}",
+                    stringify!($fn_name)
+                );
+            }
+            unsafe { ffi::$mkl_name(a_len as i32, a.as_ptr(), b.as_ptr(), y.as_mut_ptr()) }
+        }
+    };
+}
+binary_op!(vs_add, f32, vsAdd);
+binary_op!(vd_add, f64, vdAdd);
+binary_op!(vs_sub, f32, vsSub);
+binary_op!(vd_sub, f64, vdSub);
+binary_op!(vs_mul, f32, vsMul);
+binary_op!(vd_mul, f64, vdMul);
+binary_op!(vs_div, f32, vsDiv);
+binary_op!(vd_div, f64, vdDiv);
